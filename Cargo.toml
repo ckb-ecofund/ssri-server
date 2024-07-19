@@ -1,0 +1,18 @@
+[package]
+name = "ssri-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+ckb-jsonrpc-types = "0.116.1"
+ckb-sdk = "3.2.1"
+ckb-types = "0.116.1"
+ckb-vm = "0.24.9"
+hex = { version = "0.4.3", features = ["serde"] }
+jsonrpc-core = "18.0.0"
+jsonrpsee = { version = "0.24.0", features = ["server", "macros"] }
+reqwest = { version = "0.12.5", features = ["json"] }
+serde = "1.0.204"
+tokio = { version = "1.38.1", features = ["signal"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
