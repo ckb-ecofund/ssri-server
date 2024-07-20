@@ -7,7 +7,7 @@ pub enum Error {
     Encoding(&'static str),
     InvalidRequest(&'static str),
     Script(i8),
-    Vm(&'static str),
+    Vm(String),
 }
 
 impl From<Error> for ErrorObjectOwned {
@@ -21,7 +21,8 @@ impl From<Error> for ErrorObjectOwned {
         };
         let msg = match error {
             Error::JsonRpcRequestError => "".to_owned(),
-            Error::Encoding(msg) | Error::InvalidRequest(msg) | Error::Vm(msg) => msg.to_owned(),
+            Error::Encoding(msg) | Error::InvalidRequest(msg) => msg.to_owned(),
+            Error::Vm(msg) => msg,
             Error::Script(code) => format!("Script returns {}", code),
         };
 

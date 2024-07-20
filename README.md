@@ -13,7 +13,7 @@ echo '{
     "id": 2,
     "jsonrpc": "2.0",
     "method": "run_script",
-    "params": ["0x08a3a1063b2cdd727ce5fc232448f816be97a64b189ec969b163841ac37a4aae", 0, ["0xaa", "0x1234"]]
+    "params": ["0x900afcf79235e88f7bdf8a5d320365b7912f8074f4489a68405f43586fc51e5c", 0, ["0x58f02409de9de7b1", "0x0000000000000000", "0x0a00000000000000"]]
 }' \
 | curl -H 'content-type: application/json' -d @- \
 http://localhost:8090

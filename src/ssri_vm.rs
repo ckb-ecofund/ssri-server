@@ -1,10 +1,12 @@
 // refer to https://github.com/nervosnetwork/ckb-vm/blob/develop/examples/ckb-vm-runner.rs
 
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 
 use ckb_vm::cost_model::estimate_cycles;
-use ckb_vm::registers::{A0, A7};
+use ckb_vm::registers::{A0, A1, A7};
 use ckb_vm::{Bytes, Memory, Register, SupportMachine, Syscalls};
+use hex::encode;
 
 use crate::error::Error;
 
@@ -30,11 +32,19 @@ impl<M: SupportMachine<REG = u64>> Syscalls<M> for Context {
         match machine.registers()[A7].to_u64() {
             2041 => machine.set_register(A0, u64::MAX),
             2103 => {
-                let mut addr = machine.registers()[A0].to_u64();
+                let addr = machine.registers()[A0].to_u64();
+                let len = machine.registers()[A1];
+                let len = machine.memory_mut().load64(&len)?;
+
+                *self.content.clone().lock().unwrap() =
+                    Some(machine.memory_mut().load_bytes(addr, len)?);
+            }
+            2177 => {
+                let mut addr = machine.registers()[A0];
                 let mut buffer = Vec::new();
 
                 loop {
-                    let byte = machine.memory_mut().load8(&M::REG::from_u64(addr))?.to_u8();
+                    let byte = machine.memory_mut().load8(&addr)?.to_u8();
                     if byte == 0 {
                         break;
                     }
@@ -42,7 +52,7 @@ impl<M: SupportMachine<REG = u64>> Syscalls<M> for Context {
                     addr += 1;
                 }
 
-                *self.content.clone().lock().unwrap() = Some(buffer.into());
+                println!("{}", String::from_utf8(buffer).unwrap());
             }
             _ => return Ok(false),
         };
@@ -65,12 +75,16 @@ pub fn execute_riscv_binary(code: Bytes, args: Vec<Bytes>) -> Result<Option<Byte
         .build();
     let mut machine = ckb_vm::machine::asm::AsmMachine::new(core);
 
+    let args = args
+        .into_iter()
+        .map(|arg| Bytes::copy_from_slice(encode(arg).as_bytes()))
+        .collect::<Vec<Bytes>>();
     machine
         .load_program(&code, &args)
-        .map_err(|_| Error::Vm("Failed to load program"))?;
+        .map_err(|err| Error::Vm(format!("Failed to load program: {err}")))?;
     let error_code = machine
         .run()
-        .map_err(|_| Error::Vm("Failed to run program"))?;
+        .map_err(|err| Error::Vm(format!("Failed to run program: {err}")))?;
     if error_code != 0 {
         return Err(Error::Script(error_code));
     }
