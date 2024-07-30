@@ -1,3 +1,4 @@
+use ckb_jsonrpc_types::{OutPoint, Script, TransactionView};
 use ckb_types::H256;
 use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
@@ -11,11 +12,8 @@ mod ssri_vm;
 mod types;
 
 use error::Error;
-
 use rpc_client::RpcClient;
-use types::Hex;
-
-use ckb_jsonrpc_types::OutPoint;
+use types::{CellOutputWithData, Hex};
 
 use ssri_vm::execute_riscv_binary;
 
@@ -27,6 +25,9 @@ pub trait Rpc {
         tx_hash: H256,
         index: u32,
         args: Vec<Hex>,
+        script: Option<Script>,
+        cell: Option<CellOutputWithData>,
+        tx: Option<TransactionView>,
     ) -> Result<Option<Hex>, ErrorObjectOwned>;
 }
 
@@ -35,9 +36,9 @@ pub struct RpcServerImpl {
 }
 
 impl RpcServerImpl {
-    pub fn new() -> Self {
+    pub fn new(rpc: &str) -> Self {
         Self {
-            rpc: RpcClient::new("https://testnet.ckbapp.dev/"),
+            rpc: RpcClient::new(rpc),
         }
     }
 }
@@ -49,8 +50,11 @@ impl RpcServer for RpcServerImpl {
         tx_hash: H256,
         index: u32,
         args: Vec<Hex>,
+        script: Option<Script>,
+        cell: Option<CellOutputWithData>,
+        tx: Option<TransactionView>,
     ) -> Result<Option<Hex>, ErrorObjectOwned> {
-        let cell = self
+        let ssri_cell = self
             .rpc
             .get_live_cell(
                 &OutPoint {
@@ -63,7 +67,7 @@ impl RpcServer for RpcServerImpl {
 
         tracing::info!("Running script on {tx_hash}:{index} with args {args:?}");
 
-        let data = cell
+        let ssri_binary = ssri_cell
             .cell
             .ok_or(Error::InvalidRequest("Cell not found"))?
             .data
@@ -71,8 +75,13 @@ impl RpcServer for RpcServerImpl {
             .content
             .into_bytes();
 
+        let args = args.into_iter().map(|v| v.hex.into()).collect();
+        let script = script.map(Into::into);
+        let cell = cell.map(Into::into);
+        let tx = tx.map(|v| v.inner.into());
+
         Ok(
-            execute_riscv_binary(data, args.into_iter().map(|v| v.hex.into()).collect())?
+            execute_riscv_binary(self.rpc.clone(), ssri_binary, args, script, cell, tx)?
                 .map(|v| v.into()),
         )
     }
@@ -85,14 +94,21 @@ async fn main() -> anyhow::Result<()> {
         .try_init()
         .expect("setting default subscriber failed");
 
-    run_server().await?;
+    let ckb_rpc = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "https://testnet.ckbapp.dev/".to_string());
+    let server_addr = std::env::args()
+        .nth(2)
+        .unwrap_or_else(|| "0.0.0.0:9090".to_string());
+
+    run_server(&ckb_rpc, &server_addr).await?;
     Ok(())
 }
 
-async fn run_server() -> anyhow::Result<()> {
-    let server = Server::builder().build("127.0.0.1:8090").await?;
+async fn run_server(ckb_rpc: &str, server_addr: &str) -> anyhow::Result<()> {
+    let server = Server::builder().build(server_addr).await?;
 
-    let handle = server.start(RpcServerImpl::new().into_rpc());
+    let handle = server.start(RpcServerImpl::new(ckb_rpc).into_rpc());
 
     tokio::signal::ctrl_c().await.unwrap();
     handle.stop().unwrap();

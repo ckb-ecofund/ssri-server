@@ -8,6 +8,7 @@ anyhow = "1.0.86"
 ckb-jsonrpc-types = "0.116.1"
 ckb-sdk = "3.2.1"
 ckb-types = "0.116.1"
+ckb-hash = "0.116.1"
 ckb-vm = "0.24.9"
 hex = { version = "0.4.3", features = ["serde"] }
 jsonrpc-core = "18.0.0"
