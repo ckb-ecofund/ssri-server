@@ -19,15 +19,39 @@ use ssri_vm::execute_riscv_binary;
 
 #[rpc(server)]
 pub trait Rpc {
-    #[method(name = "run_script")]
-    async fn run_script(
+    #[method(name = "run_script_level_code")]
+    async fn run_script_level_code(
         &self,
         tx_hash: H256,
         index: u32,
         args: Vec<Hex>,
-        script: Option<Script>,
-        cell: Option<CellOutputWithData>,
-        tx: Option<TransactionView>,
+    ) -> Result<Option<Hex>, ErrorObjectOwned>;
+
+    #[method(name = "run_script_level_script")]
+    async fn run_script_level_script(
+        &self,
+        tx_hash: H256,
+        index: u32,
+        args: Vec<Hex>,
+        script: Script,
+    ) -> Result<Option<Hex>, ErrorObjectOwned>;
+
+    #[method(name = "run_script_level_cell")]
+    async fn run_script_level_cell(
+        &self,
+        tx_hash: H256,
+        index: u32,
+        args: Vec<Hex>,
+        cell: CellOutputWithData,
+    ) -> Result<Option<Hex>, ErrorObjectOwned>;
+
+    #[method(name = "run_script_level_tx")]
+    async fn run_script_level_tx(
+        &self,
+        tx_hash: H256,
+        index: u32,
+        args: Vec<Hex>,
+        tx: TransactionView,
     ) -> Result<Option<Hex>, ErrorObjectOwned>;
 }
 
@@ -41,10 +65,7 @@ impl RpcServerImpl {
             rpc: RpcClient::new(rpc),
         }
     }
-}
 
-#[async_trait]
-impl RpcServer for RpcServerImpl {
     async fn run_script(
         &self,
         tx_hash: H256,
@@ -84,6 +105,52 @@ impl RpcServer for RpcServerImpl {
             execute_riscv_binary(self.rpc.clone(), ssri_binary, args, script, cell, tx)?
                 .map(|v| v.into()),
         )
+    }
+}
+
+#[async_trait]
+impl RpcServer for RpcServerImpl {
+    async fn run_script_level_code(
+        &self,
+        tx_hash: H256,
+        index: u32,
+        args: Vec<Hex>,
+    ) -> Result<Option<Hex>, ErrorObjectOwned> {
+        self.run_script(tx_hash, index, args, None, None, None)
+            .await
+    }
+
+    async fn run_script_level_script(
+        &self,
+        tx_hash: H256,
+        index: u32,
+        args: Vec<Hex>,
+        script: Script,
+    ) -> Result<Option<Hex>, ErrorObjectOwned> {
+        self.run_script(tx_hash, index, args, Some(script), None, None)
+            .await
+    }
+
+    async fn run_script_level_cell(
+        &self,
+        tx_hash: H256,
+        index: u32,
+        args: Vec<Hex>,
+        cell: CellOutputWithData,
+    ) -> Result<Option<Hex>, ErrorObjectOwned> {
+        self.run_script(tx_hash, index, args, None, Some(cell), None)
+            .await
+    }
+
+    async fn run_script_level_tx(
+        &self,
+        tx_hash: H256,
+        index: u32,
+        args: Vec<Hex>,
+        tx: TransactionView,
+    ) -> Result<Option<Hex>, ErrorObjectOwned> {
+        self.run_script(tx_hash, index, args, None, None, Some(tx))
+            .await
     }
 }
 
