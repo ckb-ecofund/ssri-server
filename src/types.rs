@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 use std::fmt::Debug;
 
+use ckb_jsonrpc_types::CellOutput;
 use ckb_vm::Bytes;
 use core::fmt;
 use hex::{FromHex, ToHex};
@@ -72,7 +73,7 @@ pub struct Hex {
 
 impl Debug for Hex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", format!("0x{}", self.hex.encode_hex::<String>()))
+        write!(f, "0x{}", self.hex.encode_hex::<String>())
     }
 }
 
@@ -82,4 +83,10 @@ impl From<Bytes> for Hex {
             hex: value.to_vec(),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CellOutputWithData {
+    pub cell_output: CellOutput,
+    pub hex_data: Option<Hex>,
 }

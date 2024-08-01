@@ -3,7 +3,8 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use ckb_jsonrpc_types::{CellWithStatus, OutPoint};
+use ckb_jsonrpc_types::{CellWithStatus, JsonBytes, OutPoint, Uint32};
+use ckb_sdk::rpc::ckb_indexer::{Cell, Order, Pagination, SearchKey};
 use jsonrpc_core::futures::FutureExt;
 use jsonrpc_core::serde_json;
 use reqwest::{Client, Url};
@@ -73,5 +74,26 @@ impl RpcClient {
         with_data: bool,
     ) -> RpcResponse<CellWithStatus> {
         jsonrpc!("get_live_cell", self, CellWithStatus, out_point, with_data).boxed()
+    }
+
+    pub fn get_cells(
+        &self,
+        search_key: SearchKey,
+        limit: u32,
+        cursor: Option<JsonBytes>,
+    ) -> RpcResponse<Pagination<Cell>> {
+        let order = Order::Asc;
+        let limit = Uint32::from(limit);
+
+        jsonrpc!(
+            "get_cells",
+            self,
+            Pagination<Cell>,
+            search_key,
+            order,
+            limit,
+            cursor,
+        )
+        .boxed()
     }
 }
