@@ -2521,6 +2521,7 @@ name = "ssri-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ckb-hash",
  "ckb-jsonrpc-types",
  "ckb-sdk",
  "ckb-types",
