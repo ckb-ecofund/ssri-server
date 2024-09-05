@@ -85,6 +85,17 @@ impl From<Bytes> for Hex {
     }
 }
 
+impl From<&str> for Hex {
+    fn from(value: &str) -> Self {
+        if !value.starts_with("0x") {
+            panic!("expected a 0x-prefixed hex encoded string");
+        }
+        let hex_str = &value[2..];
+        let hex_bytes = Vec::from_hex(hex_str).unwrap();
+        Self { hex: hex_bytes }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CellOutputWithData {
     pub cell_output: CellOutput,

@@ -1,25 +1,21 @@
 use ckb_jsonrpc_types::{OutPoint, Script, TransactionView};
 use ckb_types::H256;
 use jsonrpsee::core::async_trait;
-use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::server::Server;
 use jsonrpsee::tracing;
 use jsonrpsee::types::ErrorObjectOwned;
 
-mod error;
-mod rpc_client;
-mod ssri_vm;
-mod types;
+pub mod error;
+pub mod rpc_client;
+pub mod ssri_vm;
+pub mod types;
 
 use error::Error;
 use rpc_client::RpcClient;
+use ssri_vm::execute_riscv_binary;
 use types::{CellOutputWithData, Hex};
 
-use ssri_vm::execute_riscv_binary;
-
-#[rpc(server)]
-pub trait Rpc {
-    #[method(name = "run_script_level_code")]
+#[async_trait]
+pub trait SSRILevel {
     async fn run_script_level_code(
         &self,
         tx_hash: H256,
@@ -27,7 +23,6 @@ pub trait Rpc {
         args: Vec<Hex>,
     ) -> Result<Option<Hex>, ErrorObjectOwned>;
 
-    #[method(name = "run_script_level_script")]
     async fn run_script_level_script(
         &self,
         tx_hash: H256,
@@ -36,7 +31,6 @@ pub trait Rpc {
         script: Script,
     ) -> Result<Option<Hex>, ErrorObjectOwned>;
 
-    #[method(name = "run_script_level_cell")]
     async fn run_script_level_cell(
         &self,
         tx_hash: H256,
@@ -45,7 +39,6 @@ pub trait Rpc {
         cell: CellOutputWithData,
     ) -> Result<Option<Hex>, ErrorObjectOwned>;
 
-    #[method(name = "run_script_level_tx")]
     async fn run_script_level_tx(
         &self,
         tx_hash: H256,
@@ -55,18 +48,18 @@ pub trait Rpc {
     ) -> Result<Option<Hex>, ErrorObjectOwned>;
 }
 
-pub struct RpcServerImpl {
+pub struct SSRIRunner {
     rpc: RpcClient,
 }
 
-impl RpcServerImpl {
+impl SSRIRunner {
     pub fn new(rpc: &str) -> Self {
         Self {
             rpc: RpcClient::new(rpc),
         }
     }
 
-    async fn run_script(
+    pub async fn run_script(
         &self,
         tx_hash: H256,
         index: u32,
@@ -109,7 +102,7 @@ impl RpcServerImpl {
 }
 
 #[async_trait]
-impl RpcServer for RpcServerImpl {
+impl SSRILevel for SSRIRunner {
     async fn run_script_level_code(
         &self,
         tx_hash: H256,
@@ -152,33 +145,4 @@ impl RpcServer for RpcServerImpl {
         self.run_script(tx_hash, index, args, None, None, Some(tx))
             .await
     }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::FmtSubscriber::builder()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .try_init()
-        .expect("setting default subscriber failed");
-
-    let ckb_rpc = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "https://testnet.ckbapp.dev/".to_string());
-    let server_addr = std::env::args()
-        .nth(2)
-        .unwrap_or_else(|| "0.0.0.0:9090".to_string());
-
-    run_server(&ckb_rpc, &server_addr).await?;
-    Ok(())
-}
-
-async fn run_server(ckb_rpc: &str, server_addr: &str) -> anyhow::Result<()> {
-    let server = Server::builder().build(server_addr).await?;
-
-    let handle = server.start(RpcServerImpl::new(ckb_rpc).into_rpc());
-
-    tokio::signal::ctrl_c().await.unwrap();
-    handle.stop().unwrap();
-
-    Ok(())
 }

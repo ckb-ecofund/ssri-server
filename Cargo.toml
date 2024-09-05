@@ -1,7 +1,11 @@
 [package]
-name = "ssri-server"
+name = "ssri-runner"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "ssri-cli"
+path = "src/cli.rs"
 
 [dependencies]
 anyhow = "1.0.86"
@@ -17,3 +21,4 @@ reqwest = { version = "0.12.5", features = ["json"] }
 serde = "1.0.204"
 tokio = { version = "1.38.1", features = ["signal"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+clap = { version = "4.5.16", features = ["env"] }
